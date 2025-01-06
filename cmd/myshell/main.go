@@ -8,29 +8,28 @@ import (
 	"strings"
 )
 
+func echo(args []string) {
+	fmt.Println(strings.Join(args, " "))
+}
+
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
-		// Print the prompt
 		fmt.Fprint(os.Stdout, "$ ")
 
-		// Read user input
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error reading input:", err)
 			continue
 		}
 
-		// Trim the newline character
 		input = strings.TrimSpace(input)
-
-		// Split the input into command and arguments
 		parts := strings.Split(input, " ")
 		command := parts[0]
 
-		// Handle the exit command
-		if command == "exit" {
+		switch command {
+		case "exit":
 			if len(parts) > 1 {
 				exitCode, err := strconv.Atoi(parts[1])
 				if err != nil {
@@ -38,12 +37,12 @@ func main() {
 					continue
 				}
 				os.Exit(exitCode)
-			} else {
-				os.Exit(0)
 			}
+			os.Exit(0)
+		case "echo":
+			echo(parts[1:])
+		default:
+			fmt.Fprintf(os.Stdout, "%s: command not found\n", input)
 		}
-
-		// Print the command not found message
-		fmt.Fprint(os.Stdout, input+": command not found\n")
 	}
 }
