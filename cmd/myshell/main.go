@@ -12,6 +12,20 @@ func echo(args []string) {
 	fmt.Println(strings.Join(args, " "))
 }
 
+func typeCmd(args []string) {
+	if len(args) != 1 {
+		fmt.Fprintln(os.Stderr, "usage: type command_name")
+		return
+	}
+
+	switch args[0] {
+	case "exit", "echo", "type":
+		fmt.Printf("%s is a shell builtin\n", args[0])
+	default:
+		fmt.Printf("%s is not found\n", args[0])
+	}
+}
+
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -41,6 +55,8 @@ func main() {
 			os.Exit(0)
 		case "echo":
 			echo(parts[1:])
+		case "type":
+			typeCmd(parts[1:])
 		default:
 			fmt.Fprintf(os.Stdout, "%s: command not found\n", input)
 		}
