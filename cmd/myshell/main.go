@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -73,7 +74,31 @@ func main() {
 		case "type":
 			typeCmd(parts[1:])
 		default:
-			fmt.Fprintf(os.Stdout, "%s: command not found\n", input)
+			// Search for the command in PATH
+			pathDirs := strings.Split(os.Getenv("PATH"), ":")
+			found := false
+
+			for _, dir := range pathDirs {
+				filePath := filepath.Join(dir, command)
+				if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
+					if info.Mode()&0111 != 0 {
+						// Execute the command
+						cmd := exec.Command(filePath, parts[1:]...)
+						cmd.Stdout = os.Stdout
+						cmd.Stderr = os.Stderr
+
+						if err := cmd.Run(); err != nil {
+							fmt.Fprintln(os.Stderr, "Error executing command:", err)
+						}
+						found = true
+						break
+					}
+				}
+			}
+
+			if !found {
+				fmt.Fprintf(os.Stdout, "%s: command not found\n", command)
+			}
 		}
 	}
 }
