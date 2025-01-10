@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -21,9 +22,23 @@ func typeCmd(args []string) {
 	switch args[0] {
 	case "exit", "echo", "type":
 		fmt.Printf("%s is a shell builtin\n", args[0])
-	default:
-		fmt.Printf("%s: not found\n", args[0])
+		return
 	}
+
+	// Search in PATH
+	pathDirs := strings.Split(os.Getenv("PATH"), ":")
+	for _, dir := range pathDirs {
+		filePath := filepath.Join(dir, args[0])
+		if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
+			// Check if the file is executable
+			if info.Mode()&0111 != 0 {
+				fmt.Printf("%s is %s\n", args[0], filePath)
+				return
+			}
+		}
+	}
+
+	fmt.Printf("%s: not found\n", args[0])
 }
 
 func main() {
