@@ -82,8 +82,9 @@ func main() {
 				filePath := filepath.Join(dir, command)
 				if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
 					if info.Mode()&0111 != 0 {
-						// Execute the command
-						cmd := exec.Command(filePath, parts[1:]...)
+						// Execute the command using the original command name
+						cmd := exec.Command(filePath)
+						cmd.Args = append([]string{command}, parts[1:]...)
 						cmd.Stdout = os.Stdout
 						cmd.Stderr = os.Stderr
 
