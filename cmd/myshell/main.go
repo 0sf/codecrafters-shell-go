@@ -30,7 +30,7 @@ func typeCmd(args []string) {
 	}
 
 	switch args[0] {
-	case "exit", "echo", "type":
+	case "exit", "echo", "type", "pwd":
 		fmt.Printf("%s is a shell builtin\n", args[0])
 		return
 	}
