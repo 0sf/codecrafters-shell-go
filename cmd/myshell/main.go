@@ -14,6 +14,15 @@ func echo(args []string) {
 	fmt.Println(strings.Join(args, " "))
 }
 
+func pwd() {
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error getting current directory:", err)
+		return
+	}
+	fmt.Println(dir)
+}
+
 func typeCmd(args []string) {
 	if len(args) != 1 {
 		fmt.Fprintln(os.Stderr, "usage: type command_name")
@@ -73,6 +82,8 @@ func main() {
 			echo(parts[1:])
 		case "type":
 			typeCmd(parts[1:])
+		case "pwd":
+			pwd()
 		default:
 			// Search for the command in PATH
 			pathDirs := strings.Split(os.Getenv("PATH"), ":")
