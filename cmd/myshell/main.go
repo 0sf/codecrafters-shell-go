@@ -29,7 +29,18 @@ func cd(args []string) {
 		return
 	}
 
-	err := os.Chdir(args[0])
+	path := args[0]
+	if path == "~" {
+		// Get home directory from HOME environment variable
+		homeDir := os.Getenv("HOME")
+		if homeDir == "" {
+			fmt.Fprintln(os.Stderr, "cd: HOME environment variable not set")
+			return
+		}
+		path = homeDir
+	}
+
+	err := os.Chdir(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cd: %s: No such file or directory\n", args[0])
 	}
