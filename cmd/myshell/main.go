@@ -23,6 +23,18 @@ func pwd() {
 	fmt.Println(dir)
 }
 
+func cd(args []string) {
+	if len(args) != 1 {
+		fmt.Fprintln(os.Stderr, "usage: cd directory")
+		return
+	}
+
+	err := os.Chdir(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cd: %s: No such file or directory\n", args[0])
+	}
+}
+
 func typeCmd(args []string) {
 	if len(args) != 1 {
 		fmt.Fprintln(os.Stderr, "usage: type command_name")
@@ -30,7 +42,7 @@ func typeCmd(args []string) {
 	}
 
 	switch args[0] {
-	case "exit", "echo", "type", "pwd":
+	case "exit", "echo", "type", "pwd", "cd":
 		fmt.Printf("%s is a shell builtin\n", args[0])
 		return
 	}
@@ -84,6 +96,8 @@ func main() {
 			typeCmd(parts[1:])
 		case "pwd":
 			pwd()
+		case "cd":
+			cd(parts[1:])
 		default:
 			// Search for the command in PATH
 			pathDirs := strings.Split(os.Getenv("PATH"), ":")
