@@ -74,6 +74,41 @@ func typeCmd(args []string) {
 	fmt.Printf("%s: not found\n", args[0])
 }
 
+func parseInput(input string) []string {
+	var args []string
+	var currentArg strings.Builder
+	inQuotes := false
+
+	for _, char := range input {
+		switch char {
+		case '\'': // Handle single quotes
+			inQuotes = !inQuotes
+		case '"': // Handle double quotes if needed
+			inQuotes = !inQuotes
+		case '\n': // Ignore newline
+		case '\r': // Ignore carriage return
+		case ' ': // Handle spaces
+			if inQuotes {
+				currentArg.WriteRune(char)
+			} else {
+				if currentArg.Len() > 0 {
+					args = append(args, currentArg.String())
+					currentArg.Reset()
+				}
+			}
+		default:
+			currentArg.WriteRune(char)
+		}
+	}
+
+	// Add the last argument if exists
+	if currentArg.Len() > 0 {
+		args = append(args, currentArg.String())
+	}
+
+	return args
+}
+
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -87,7 +122,7 @@ func main() {
 		}
 
 		input = strings.TrimSpace(input)
-		parts := strings.Split(input, " ")
+		parts := parseInput(input)
 		command := parts[0]
 
 		switch command {
