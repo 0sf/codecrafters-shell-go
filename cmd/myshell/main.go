@@ -77,19 +77,33 @@ func typeCmd(args []string) {
 func parseInput(input string) []string {
 	var args []string
 	var currentArg strings.Builder
-	inQuotes := false
+	inSingleQuotes, inDoubleQuotes := false, false
 
-	for _, char := range input {
+	for i := 0; i < len(input); i++ {
+		char := input[i]
 		switch char {
+		case '\\': // Handle escape character
+			if i+1 < len(input) {
+				currentArg.WriteByte(input[i+1])
+				i++ // Skip the next character
+			}
+		case '"': // Handle double quotes
+			if inSingleQuotes {
+				currentArg.WriteByte(char)
+			} else {
+				inDoubleQuotes = !inDoubleQuotes
+			}
 		case '\'': // Handle single quotes
-			inQuotes = !inQuotes
-		case '"': // Handle double quotes if needed
-			inQuotes = !inQuotes
+			if inDoubleQuotes {
+				currentArg.WriteByte(char)
+			} else {
+				inSingleQuotes = !inSingleQuotes
+			}
 		case '\n': // Ignore newline
 		case '\r': // Ignore carriage return
 		case ' ': // Handle spaces
-			if inQuotes {
-				currentArg.WriteRune(char)
+			if inSingleQuotes || inDoubleQuotes {
+				currentArg.WriteByte(char)
 			} else {
 				if currentArg.Len() > 0 {
 					args = append(args, currentArg.String())
@@ -97,7 +111,7 @@ func parseInput(input string) []string {
 				}
 			}
 		default:
-			currentArg.WriteRune(char)
+			currentArg.WriteByte(char)
 		}
 	}
 
