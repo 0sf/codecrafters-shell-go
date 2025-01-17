@@ -113,6 +113,9 @@ func parseInput(input string) []string {
 		case ' ':
 			if inSingleQuotes || inDoubleQuotes {
 				currentArg.WriteByte(char)
+			} else if escaped {
+				currentArg.WriteByte(char)
+				escaped = false
 			} else {
 				if currentArg.Len() > 0 {
 					args = append(args, currentArg.String())
@@ -127,11 +130,6 @@ func parseInput(input string) []string {
 	// Add the last argument if exists
 	if currentArg.Len() > 0 {
 		args = append(args, currentArg.String())
-	}
-
-	// Handle backslashes in file paths
-	for i, arg := range args {
-		args[i] = strings.ReplaceAll(arg, "\\", "")
 	}
 
 	return args
