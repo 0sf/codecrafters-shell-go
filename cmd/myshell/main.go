@@ -129,6 +129,11 @@ func parseInput(input string) []string {
 		args = append(args, currentArg.String())
 	}
 
+	// Handle backslashes in file paths
+	for i, arg := range args {
+		args[i] = strings.ReplaceAll(arg, "\\", "")
+	}
+
 	return args
 }
 
