@@ -84,17 +84,8 @@ func parseInput(input string) []string {
 		char := input[i]
 
 		if escaped {
-			switch char {
-			case 'n':
-				currentArg.WriteByte('\n')
-			case 't':
-				currentArg.WriteByte('\t')
-			case 'r':
-				currentArg.WriteByte('\r')
-			default:
-				// For any other character after backslash, just add the character
-				currentArg.WriteByte(char)
-			}
+			// If previous char was backslash, add current char literally
+			currentArg.WriteByte(char)
 			escaped = false
 			continue
 		}
