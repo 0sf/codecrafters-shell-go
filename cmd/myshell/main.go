@@ -78,30 +78,39 @@ func parseInput(input string) []string {
 	var args []string
 	var currentArg strings.Builder
 	inSingleQuotes, inDoubleQuotes := false, false
+	escaped := false
 
 	for i := 0; i < len(input); i++ {
 		char := input[i]
+
+		if escaped {
+			// If previous char was backslash, add current char literally
+			currentArg.WriteByte(char)
+			escaped = false
+			continue
+		}
+
 		switch char {
-		case '\\': // Handle escape character
-			if i+1 < len(input) {
-				currentArg.WriteByte(input[i+1])
-				i++ // Skip the next character
-			}
-		case '"': // Handle double quotes
+		case '\\':
 			if inSingleQuotes {
+				// Backslashes are treated literally in single quotes
 				currentArg.WriteByte(char)
 			} else {
+				escaped = true
+			}
+		case '"':
+			if !inSingleQuotes {
 				inDoubleQuotes = !inDoubleQuotes
-			}
-		case '\'': // Handle single quotes
-			if inDoubleQuotes {
-				currentArg.WriteByte(char)
 			} else {
-				inSingleQuotes = !inSingleQuotes
+				currentArg.WriteByte(char)
 			}
-		case '\n': // Ignore newline
-		case '\r': // Ignore carriage return
-		case ' ': // Handle spaces
+		case '\'':
+			if !inDoubleQuotes {
+				inSingleQuotes = !inSingleQuotes
+			} else {
+				currentArg.WriteByte(char)
+			}
+		case ' ':
 			if inSingleQuotes || inDoubleQuotes {
 				currentArg.WriteByte(char)
 			} else {
