@@ -95,6 +95,13 @@ func parseInput(input string) []string {
 			if inSingleQuotes {
 				// Backslashes are treated literally in single quotes
 				currentArg.WriteByte(char)
+			} else if inDoubleQuotes {
+				// In double quotes, only escape \ and "
+				if i+1 < len(input) && (input[i+1] == '\\' || input[i+1] == '"') {
+					escaped = true
+				} else {
+					currentArg.WriteByte(char)
+				}
 			} else {
 				escaped = true
 			}
