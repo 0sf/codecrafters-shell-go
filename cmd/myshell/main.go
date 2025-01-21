@@ -142,6 +142,49 @@ func parseInput(input string) []string {
 	return args
 }
 
+func executeCommand(command string, args []string, outputFile string) {
+	// Search for the command in PATH
+	pathDirs := strings.Split(os.Getenv("PATH"), ":")
+	found := false
+
+	for _, dir := range pathDirs {
+		filePath := filepath.Join(dir, command)
+		if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
+			if info.Mode()&0111 != 0 {
+				// Create or truncate the output file if specified
+				var stdout *os.File
+				if outputFile != "" {
+					var err error
+					stdout, err = os.Create(outputFile)
+					if err != nil {
+						fmt.Fprintln(os.Stderr, "Error creating output file:", err)
+						return
+					}
+					defer stdout.Close()
+				} else {
+					stdout = os.Stdout
+				}
+
+				// Execute the command using the original command name
+				cmd := exec.Command(filePath)
+				cmd.Args = append([]string{command}, args...)
+				cmd.Stdout = stdout
+				cmd.Stderr = os.Stderr
+
+				if err := cmd.Run(); err != nil {
+					fmt.Fprintln(os.Stderr, "Error executing command:", err)
+				}
+				found = true
+				break
+			}
+		}
+	}
+
+	if !found {
+		fmt.Fprintf(os.Stdout, "%s: command not found\n", command)
+	}
+}
+
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -156,54 +199,80 @@ func main() {
 
 		input = strings.TrimSpace(input)
 		parts := parseInput(input)
-		command := parts[0]
+		if len(parts) == 0 {
+			continue
+		}
+
+		// Find redirection operator
+		outputFile := ""
+		cmdParts := parts
+		for i, part := range parts {
+			if part == ">" || part == "1>" {
+				if i+1 < len(parts) {
+					outputFile = parts[i+1]
+					cmdParts = parts[:i]
+				}
+				break
+			}
+		}
+
+		command := cmdParts[0]
+		args := cmdParts[1:]
 
 		switch command {
 		case "exit":
-			if len(parts) > 1 {
-				exitCode, err := strconv.Atoi(parts[1])
+			if len(args) > 0 {
+				exitCode, err := strconv.Atoi(args[0])
 				if err != nil {
-					fmt.Fprintln(os.Stderr, "Invalid exit code:", parts[1])
+					fmt.Fprintln(os.Stderr, "Invalid exit code:", args[0])
 					continue
 				}
 				os.Exit(exitCode)
 			}
 			os.Exit(0)
 		case "echo":
-			echo(parts[1:])
-		case "type":
-			typeCmd(parts[1:])
-		case "pwd":
-			pwd()
-		case "cd":
-			cd(parts[1:])
-		default:
-			// Search for the command in PATH
-			pathDirs := strings.Split(os.Getenv("PATH"), ":")
-			found := false
-
-			for _, dir := range pathDirs {
-				filePath := filepath.Join(dir, command)
-				if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
-					if info.Mode()&0111 != 0 {
-						// Execute the command using the original command name
-						cmd := exec.Command(filePath)
-						cmd.Args = append([]string{command}, parts[1:]...)
-						cmd.Stdout = os.Stdout
-						cmd.Stderr = os.Stderr
-
-						if err := cmd.Run(); err != nil {
-							fmt.Fprintln(os.Stderr, "Error executing command:", err)
-						}
-						found = true
-						break
-					}
+			if outputFile != "" {
+				if f, err := os.Create(outputFile); err == nil {
+					fmt.Fprintln(f, strings.Join(args, " "))
+					f.Close()
+				} else {
+					fmt.Fprintln(os.Stderr, "Error creating output file:", err)
 				}
+			} else {
+				echo(args)
 			}
-
-			if !found {
-				fmt.Fprintf(os.Stdout, "%s: command not found\n", command)
+		case "type":
+			if outputFile != "" {
+				if f, err := os.Create(outputFile); err == nil {
+					old := os.Stdout
+					os.Stdout = f
+					typeCmd(args)
+					os.Stdout = old
+					f.Close()
+				} else {
+					fmt.Fprintln(os.Stderr, "Error creating output file:", err)
+				}
+			} else {
+				typeCmd(args)
 			}
+		case "pwd":
+			if outputFile != "" {
+				if f, err := os.Create(outputFile); err == nil {
+					old := os.Stdout
+					os.Stdout = f
+					pwd()
+					os.Stdout = old
+					f.Close()
+				} else {
+					fmt.Fprintln(os.Stderr, "Error creating output file:", err)
+				}
+			} else {
+				pwd()
+			}
+		case "cd":
+			cd(args)
+		default:
+			executeCommand(command, args, outputFile)
 		}
 	}
 }
