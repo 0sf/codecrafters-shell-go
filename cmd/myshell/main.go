@@ -142,8 +142,7 @@ func parseInput(input string) []string {
 	return args
 }
 
-func executeCommand(command string, args []string, outputFile string) {
-	// Search for the command in PATH
+func executeCommand(command string, args []string, outputFile, errorFile string) {
 	pathDirs := strings.Split(os.Getenv("PATH"), ":")
 	found := false
 
@@ -151,8 +150,8 @@ func executeCommand(command string, args []string, outputFile string) {
 		filePath := filepath.Join(dir, command)
 		if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
 			if info.Mode()&0111 != 0 {
-				// Create or truncate the output file if specified
-				var stdout *os.File
+				// Set up stdout redirection
+				var stdout *os.File = os.Stdout
 				if outputFile != "" {
 					var err error
 					stdout, err = os.Create(outputFile)
@@ -161,15 +160,24 @@ func executeCommand(command string, args []string, outputFile string) {
 						return
 					}
 					defer stdout.Close()
-				} else {
-					stdout = os.Stdout
 				}
 
-				// Execute the command using the original command name
+				// Set up stderr redirection
+				var stderr *os.File = os.Stderr
+				if errorFile != "" {
+					var err error
+					stderr, err = os.Create(errorFile)
+					if err != nil {
+						fmt.Fprintln(os.Stderr, "Error creating error file:", err)
+						return
+					}
+					defer stderr.Close()
+				}
+
 				cmd := exec.Command(filePath)
 				cmd.Args = append([]string{command}, args...)
 				cmd.Stdout = stdout
-				cmd.Stderr = os.Stderr
+				cmd.Stderr = stderr
 
 				cmd.Run()
 				found = true
@@ -201,16 +209,25 @@ func main() {
 			continue
 		}
 
-		// Find redirection operator
+		// Find redirection operators
 		outputFile := ""
+		errorFile := ""
 		cmdParts := parts
-		for i, part := range parts {
-			if part == ">" || part == "1>" {
-				if i+1 < len(parts) {
-					outputFile = parts[i+1]
-					cmdParts = parts[:i]
+
+		for i := 0; i < len(parts); i++ {
+			if (parts[i] == ">" || parts[i] == "1>") && i+1 < len(parts) {
+				outputFile = parts[i+1]
+				if &cmdParts[0] == &parts[0] {
+					cmdParts = make([]string, i)
+					copy(cmdParts, parts[:i])
 				}
-				break
+
+			} else if parts[i] == "2>" && i+1 < len(parts) {
+				errorFile = parts[i+1]
+				if &cmdParts[0] == &parts[0] {
+					cmdParts = make([]string, i)
+					copy(cmdParts, parts[:i])
+				}
 			}
 		}
 
@@ -229,48 +246,71 @@ func main() {
 			}
 			os.Exit(0)
 		case "echo":
-			if outputFile != "" {
-				if f, err := os.Create(outputFile); err == nil {
-					fmt.Fprintln(f, strings.Join(args, " "))
-					f.Close()
-				} else {
-					fmt.Fprintln(os.Stderr, "Error creating output file:", err)
+			if outputFile != "" || errorFile != "" {
+				stdout := os.Stdout
+				stderr := os.Stderr
+
+				if outputFile != "" {
+					if f, err := os.Create(outputFile); err == nil {
+						stdout = f
+						defer f.Close()
+					} else {
+						fmt.Fprintln(stderr, "Error creating output file:", err)
+						continue
+					}
 				}
+				if errorFile != "" {
+					if f, err := os.Create(errorFile); err == nil {
+						stderr = f
+						defer f.Close()
+					} else {
+						fmt.Fprintln(os.Stderr, "Error creating error file:", err)
+						continue
+					}
+				}
+				fmt.Fprintln(stdout, strings.Join(args, " "))
 			} else {
 				echo(args)
 			}
-		case "type":
+		case "type", "pwd":
+			stdout := os.Stdout
+			stderr := os.Stderr
 			if outputFile != "" {
 				if f, err := os.Create(outputFile); err == nil {
-					old := os.Stdout
-					os.Stdout = f
-					typeCmd(args)
-					os.Stdout = old
-					f.Close()
+					stdout = f
+					defer f.Close()
 				} else {
 					fmt.Fprintln(os.Stderr, "Error creating output file:", err)
+					continue
 				}
-			} else {
-				typeCmd(args)
 			}
-		case "pwd":
-			if outputFile != "" {
-				if f, err := os.Create(outputFile); err == nil {
-					old := os.Stdout
-					os.Stdout = f
-					pwd()
-					os.Stdout = old
-					f.Close()
+			if errorFile != "" {
+				if f, err := os.Create(errorFile); err == nil {
+					stderr = f
+					defer f.Close()
 				} else {
-					fmt.Fprintln(os.Stderr, "Error creating output file:", err)
+					fmt.Fprintln(os.Stderr, "Error creating error file:", err)
+					continue
 				}
+			}
+
+			oldStdout := os.Stdout
+			oldStderr := os.Stderr
+			os.Stdout = stdout
+			os.Stderr = stderr
+
+			if command == "type" {
+				typeCmd(args)
 			} else {
 				pwd()
 			}
+
+			os.Stdout = oldStdout
+			os.Stderr = oldStderr
 		case "cd":
 			cd(args)
 		default:
-			executeCommand(command, args, outputFile)
+			executeCommand(command, args, outputFile, errorFile)
 		}
 	}
 }
