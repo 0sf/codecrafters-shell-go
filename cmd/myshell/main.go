@@ -171,9 +171,7 @@ func executeCommand(command string, args []string, outputFile string) {
 				cmd.Stdout = stdout
 				cmd.Stderr = os.Stderr
 
-				if err := cmd.Run(); err != nil {
-					fmt.Fprintln(os.Stderr, "Error executing command:", err)
-				}
+				cmd.Run()
 				found = true
 				break
 			}
