@@ -142,7 +142,7 @@ func parseInput(input string) []string {
 	return args
 }
 
-func executeCommand(command string, args []string, outputFile, errorFile string) {
+func executeCommand(command string, args []string, outputFile, errorFile string, appendOutput bool) {
 	pathDirs := strings.Split(os.Getenv("PATH"), ":")
 	found := false
 
@@ -153,10 +153,16 @@ func executeCommand(command string, args []string, outputFile, errorFile string)
 				// Set up stdout redirection
 				var stdout *os.File = os.Stdout
 				if outputFile != "" {
+					flag := os.O_WRONLY | os.O_CREATE
+					if appendOutput {
+						flag |= os.O_APPEND
+					} else {
+						flag |= os.O_TRUNC
+					}
 					var err error
-					stdout, err = os.Create(outputFile)
+					stdout, err = os.OpenFile(outputFile, flag, 0644)
 					if err != nil {
-						fmt.Fprintln(os.Stderr, "Error creating output file:", err)
+						fmt.Fprintln(os.Stderr, "Error opening output file:", err)
 						return
 					}
 					defer stdout.Close()
@@ -212,16 +218,24 @@ func main() {
 		// Find redirection operators
 		outputFile := ""
 		errorFile := ""
+		appendOutput := false
 		cmdParts := parts
 
 		for i := 0; i < len(parts); i++ {
 			if (parts[i] == ">" || parts[i] == "1>") && i+1 < len(parts) {
 				outputFile = parts[i+1]
+				appendOutput = false
 				if &cmdParts[0] == &parts[0] {
 					cmdParts = make([]string, i)
 					copy(cmdParts, parts[:i])
 				}
-
+			} else if (parts[i] == ">>" || parts[i] == "1>>") && i+1 < len(parts) {
+				outputFile = parts[i+1]
+				appendOutput = true
+				if &cmdParts[0] == &parts[0] {
+					cmdParts = make([]string, i)
+					copy(cmdParts, parts[:i])
+				}
 			} else if parts[i] == "2>" && i+1 < len(parts) {
 				errorFile = parts[i+1]
 				if &cmdParts[0] == &parts[0] {
@@ -251,11 +265,17 @@ func main() {
 				stderr := os.Stderr
 
 				if outputFile != "" {
-					if f, err := os.Create(outputFile); err == nil {
+					flag := os.O_WRONLY | os.O_CREATE
+					if appendOutput {
+						flag |= os.O_APPEND
+					} else {
+						flag |= os.O_TRUNC
+					}
+					if f, err := os.OpenFile(outputFile, flag, 0644); err == nil {
 						stdout = f
 						defer f.Close()
 					} else {
-						fmt.Fprintln(stderr, "Error creating output file:", err)
+						fmt.Fprintln(stderr, "Error opening output file:", err)
 						continue
 					}
 				}
@@ -276,11 +296,17 @@ func main() {
 			stdout := os.Stdout
 			stderr := os.Stderr
 			if outputFile != "" {
-				if f, err := os.Create(outputFile); err == nil {
+				flag := os.O_WRONLY | os.O_CREATE
+				if appendOutput {
+					flag |= os.O_APPEND
+				} else {
+					flag |= os.O_TRUNC
+				}
+				if f, err := os.OpenFile(outputFile, flag, 0644); err == nil {
 					stdout = f
 					defer f.Close()
 				} else {
-					fmt.Fprintln(os.Stderr, "Error creating output file:", err)
+					fmt.Fprintln(os.Stderr, "Error opening output file:", err)
 					continue
 				}
 			}
@@ -310,7 +336,7 @@ func main() {
 		case "cd":
 			cd(args)
 		default:
-			executeCommand(command, args, outputFile, errorFile)
+			executeCommand(command, args, outputFile, errorFile, appendOutput)
 		}
 	}
 }
