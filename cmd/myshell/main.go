@@ -142,7 +142,7 @@ func parseInput(input string) []string {
 	return args
 }
 
-func executeCommand(command string, args []string, outputFile, errorFile string, appendOutput bool) {
+func executeCommand(command string, args []string, outputFile, errorFile string, appendOutput, appendError bool) {
 	pathDirs := strings.Split(os.Getenv("PATH"), ":")
 	found := false
 
@@ -171,8 +171,14 @@ func executeCommand(command string, args []string, outputFile, errorFile string,
 				// Set up stderr redirection
 				var stderr *os.File = os.Stderr
 				if errorFile != "" {
+					flag := os.O_WRONLY | os.O_CREATE
+					if appendError {
+						flag |= os.O_APPEND
+					} else {
+						flag |= os.O_TRUNC
+					}
 					var err error
-					stderr, err = os.Create(errorFile)
+					stderr, err = os.OpenFile(errorFile, flag, 0644)
 					if err != nil {
 						fmt.Fprintln(os.Stderr, "Error creating error file:", err)
 						return
@@ -219,6 +225,7 @@ func main() {
 		outputFile := ""
 		errorFile := ""
 		appendOutput := false
+		appendError := false
 		cmdParts := parts
 
 		for i := 0; i < len(parts); i++ {
@@ -238,6 +245,14 @@ func main() {
 				}
 			} else if parts[i] == "2>" && i+1 < len(parts) {
 				errorFile = parts[i+1]
+				appendError = false
+				if &cmdParts[0] == &parts[0] {
+					cmdParts = make([]string, i)
+					copy(cmdParts, parts[:i])
+				}
+			} else if parts[i] == "2>>" && i+1 < len(parts) {
+				errorFile = parts[i+1]
+				appendError = true
 				if &cmdParts[0] == &parts[0] {
 					cmdParts = make([]string, i)
 					copy(cmdParts, parts[:i])
@@ -280,7 +295,13 @@ func main() {
 					}
 				}
 				if errorFile != "" {
-					if f, err := os.Create(errorFile); err == nil {
+					flag := os.O_WRONLY | os.O_CREATE
+					if appendError {
+						flag |= os.O_APPEND
+					} else {
+						flag |= os.O_TRUNC
+					}
+					if f, err := os.OpenFile(errorFile, flag, 0644); err == nil {
 						stderr = f
 						defer f.Close()
 					} else {
@@ -311,7 +332,13 @@ func main() {
 				}
 			}
 			if errorFile != "" {
-				if f, err := os.Create(errorFile); err == nil {
+				flag := os.O_WRONLY | os.O_CREATE
+				if appendError {
+					flag |= os.O_APPEND
+				} else {
+					flag |= os.O_TRUNC
+				}
+				if f, err := os.OpenFile(errorFile, flag, 0644); err == nil {
 					stderr = f
 					defer f.Close()
 				} else {
@@ -336,7 +363,7 @@ func main() {
 		case "cd":
 			cd(args)
 		default:
-			executeCommand(command, args, outputFile, errorFile, appendOutput)
+			executeCommand(command, args, outputFile, errorFile, appendOutput, appendError)
 		}
 	}
 }
