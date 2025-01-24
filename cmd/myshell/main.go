@@ -1,13 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/chzyer/readline"
 )
 
 func echo(args []string) {
@@ -203,16 +204,45 @@ func executeCommand(command string, args []string, outputFile, errorFile string,
 	}
 }
 
+// Add this new function for command completion
+func completer(line string) []string {
+	builtins := []string{"echo", "exit", "type", "pwd", "cd"}
+	if line == "" {
+		return builtins
+	}
+
+	var completions []string
+	for _, cmd := range builtins {
+		if strings.HasPrefix(cmd, line) {
+			completions = append(completions, cmd)
+		}
+	}
+	return completions
+}
+
 func main() {
-	reader := bufio.NewReader(os.Stdin)
+	// Replace the bufio.NewReader with readline setup
+	rl, err := readline.New("$ ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error initializing readline:", err)
+		os.Exit(1)
+	}
+	defer rl.Close()
+
+	// Set up the completer
+	rl.Config.AutoComplete = readline.NewPrefixCompleter(
+		readline.PcItemDynamic(func(line string) []string {
+			return completer(line)
+		}),
+	)
 
 	for {
-		fmt.Fprint(os.Stdout, "$ ")
-
-		input, err := reader.ReadString('\n')
+		input, err := rl.Readline()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error reading input:", err)
-			continue
+			if err == readline.ErrInterrupt {
+				continue
+			}
+			break
 		}
 
 		input = strings.TrimSpace(input)
