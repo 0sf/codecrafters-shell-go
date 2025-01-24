@@ -214,7 +214,7 @@ func completer(line string) []string {
 	var completions []string
 	for _, cmd := range builtins {
 		if strings.HasPrefix(cmd, line) {
-			completions = append(completions, cmd)
+			completions = append(completions, cmd+" ")
 		}
 	}
 	return completions
