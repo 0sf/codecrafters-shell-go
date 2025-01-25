@@ -220,7 +220,6 @@ func main() {
 	for {
 		fmt.Print("$ ")
 
-		// Read input byte by byte to handle special characters
 		var input []byte
 		for {
 			b, err := reader.ReadByte()
@@ -235,18 +234,17 @@ func main() {
 
 			// Handle TAB key (ASCII 9)
 			if b == 9 {
-				// Convert current input to string and get completion
 				inputStr := string(input)
 				completion := getCompletion(inputStr)
 
-				// Clear current line and print completion
-				fmt.Print("\r$ ", completion)
+				// Clear current line and print completion exactly
+				fmt.Printf("\r$ %s", completion)
 				input = []byte(completion)
 				continue
 			}
 
 			input = append(input, b)
-			fmt.Print(string(b))
+			fmt.Printf("%c", b)
 		}
 
 		command := string(input)
