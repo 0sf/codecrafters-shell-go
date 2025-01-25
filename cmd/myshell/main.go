@@ -237,8 +237,10 @@ func main() {
 				inputStr := string(input)
 				completion := getCompletion(inputStr)
 
-				// Clear current line and print completion exactly
-				fmt.Printf("\r$ %s", completion)
+				// Clear the current line completely
+				fmt.Print("\r")     // Return to start of line
+				fmt.Print("\033[K") // Clear to end of line
+				fmt.Printf("$ %s", completion)
 				input = []byte(completion)
 				continue
 			}
