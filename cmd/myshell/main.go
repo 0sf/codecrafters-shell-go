@@ -204,17 +204,20 @@ func executeCommand(command string, args []string, outputFile, errorFile string,
 	}
 }
 
-// Add this new function for command completion
+// Update the completer function
 func completer(line string) []string {
 	builtins := []string{"echo", "exit", "type", "pwd", "cd"}
+
+	// If line is empty, don't show any completions
 	if line == "" {
-		return builtins
+		return nil
 	}
 
 	var completions []string
 	for _, cmd := range builtins {
 		if strings.HasPrefix(cmd, line) {
-			completions = append(completions, cmd+" ")
+			// Add a space after the completion
+			completions = append(completions, cmd)
 		}
 	}
 	return completions
@@ -229,7 +232,7 @@ func main() {
 	}
 	defer rl.Close()
 
-	// Set up the completer
+	// Update the readline configuration
 	rl.Config.AutoComplete = readline.NewPrefixCompleter(
 		readline.PcItemDynamic(func(line string) []string {
 			return completer(line)
