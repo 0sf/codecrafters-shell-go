@@ -229,27 +229,47 @@ func main() {
 			}
 
 			if b == '\n' {
+				fmt.Println()
 				break
 			}
 
-			// Handle TAB key (ASCII 9)
-			if b == 9 {
+			// Handle tab completion
+			if b == '\t' {
 				inputStr := string(input)
 				completion := getCompletion(inputStr)
-
-				// Clear the current line completely
-				fmt.Print("\r")     // Return to start of line
-				fmt.Print("\033[K") // Clear to end of line
-				fmt.Printf("$ %s", completion)
-				input = []byte(completion)
+				if completion != inputStr {
+					// Clear current input
+					for i := 0; i < len(input); i++ {
+						fmt.Print("\b \b")
+					}
+					// Print the completed command
+					fmt.Print(completion)
+					input = []byte(completion)
+				}
 				continue
 			}
 
 			input = append(input, b)
 			fmt.Printf("%c", b)
+
+			// Show completion suggestion after each character
+			inputStr := string(input)
+			completion := getCompletion(inputStr)
+			if completion != inputStr {
+				// Save cursor position
+				fmt.Print("\033[s")
+				// Print completion suggestion in gray
+				fmt.Printf("\033[90m%s\033[0m", completion[len(inputStr):])
+				// Restore cursor position
+				fmt.Print("\033[u")
+			}
 		}
 
 		command := string(input)
+		if len(command) == 0 {
+			continue
+		}
+
 		parts := parseInput(command)
 		if len(parts) == 0 {
 			continue
