@@ -1,13 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/chzyer/readline"
 )
 
 func echo(args []string) {
@@ -203,61 +204,49 @@ func executeCommand(command string, args []string, outputFile, errorFile string,
 	}
 }
 
-func getCompletion(input string) string {
-	// Keep only echo and exit for completion
-	builtins := []string{"echo", "exit"}
+// Add this new function for command completion
+func completer(line string) []string {
+	builtins := []string{"echo", "exit", "type", "pwd", "cd"}
+	if line == "" {
+		return builtins
+	}
 
+	var completions []string
 	for _, cmd := range builtins {
-		if strings.HasPrefix(cmd, input) {
-			return cmd + " " // Maintain the space at end for completion
+		if strings.HasPrefix(cmd, line) {
+			completions = append(completions, cmd)
 		}
 	}
-	return input
+	return completions
 }
 
 func main() {
-	reader := bufio.NewReader(os.Stdin)
+	// Replace the bufio.NewReader with readline setup
+	rl, err := readline.New("$ ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error initializing readline:", err)
+		os.Exit(1)
+	}
+	defer rl.Close()
+
+	// Set up the completer
+	rl.Config.AutoComplete = readline.NewPrefixCompleter(
+		readline.PcItemDynamic(func(line string) []string {
+			return completer(line)
+		}),
+	)
 
 	for {
-		fmt.Print("$ ")
-
-		var input []byte
-		for {
-			b, err := reader.ReadByte()
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
-			}
-
-			if b == '\n' {
-				fmt.Println()
-				break
-			}
-
-			// Handle tab completion - simplified version
-			if b == '\t' {
-				inputStr := string(input)
-				completion := getCompletion(inputStr)
-				if completion != inputStr {
-					// Clear the current line
-					fmt.Print("\033[2K\r")
-					// Reprint prompt and the completed input
-					fmt.Printf("$ %s", completion)
-					input = []byte(completion)
-				}
+		input, err := rl.Readline()
+		if err != nil {
+			if err == readline.ErrInterrupt {
 				continue
 			}
-
-			input = append(input, b)
-			fmt.Printf("%c", b)
+			break
 		}
 
-		command := string(input)
-		if len(command) == 0 {
-			continue
-		}
-
-		parts := parseInput(command)
+		input = strings.TrimSpace(input)
+		parts := parseInput(input)
 		if len(parts) == 0 {
 			continue
 		}
@@ -301,7 +290,7 @@ func main() {
 			}
 		}
 
-		command = cmdParts[0]
+		command := cmdParts[0]
 		args := cmdParts[1:]
 
 		switch command {
