@@ -204,11 +204,12 @@ func executeCommand(command string, args []string, outputFile, errorFile string,
 }
 
 func getCompletion(input string) string {
-	builtins := []string{"echo", "exit", "type", "pwd", "cd"}
+	// Keep only echo and exit for completion
+	builtins := []string{"echo", "exit"}
 
 	for _, cmd := range builtins {
 		if strings.HasPrefix(cmd, input) {
-			return cmd + " "
+			return cmd + " " // Maintain the space at end for completion
 		}
 	}
 	return input
@@ -233,7 +234,7 @@ func main() {
 				break
 			}
 
-			// Handle tab completion
+			// Handle tab completion - simplified version
 			if b == '\t' {
 				inputStr := string(input)
 				completion := getCompletion(inputStr)
@@ -242,13 +243,6 @@ func main() {
 					fmt.Print("\033[2K\r")
 					// Reprint prompt and the completed input
 					fmt.Printf("$ %s", completion)
-
-					// Add spaces to overwrite any remaining characters
-					if len(inputStr) > len(completion) {
-						for i := 0; i < len(inputStr)-len(completion); i++ {
-							fmt.Print(" ")
-						}
-					}
 					input = []byte(completion)
 				}
 				continue
@@ -256,18 +250,6 @@ func main() {
 
 			input = append(input, b)
 			fmt.Printf("%c", b)
-
-			// Show completion suggestion after each character
-			inputStr := string(input)
-			completion := getCompletion(inputStr)
-			if completion != inputStr {
-				// Save cursor position
-				fmt.Print("\033[s")
-				// Print completion suggestion in gray
-				fmt.Printf("\033[90m%s\033[0m", completion[len(inputStr):])
-				// Restore cursor position
-				fmt.Print("\033[u")
-			}
 		}
 
 		command := string(input)
