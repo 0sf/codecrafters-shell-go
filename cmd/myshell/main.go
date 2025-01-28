@@ -238,15 +238,11 @@ func main() {
 				inputStr := string(input)
 				completion := getCompletion(inputStr)
 				if completion != inputStr {
-					completionDiff := completion[len(inputStr):]
-					// Move cursor to beginning of line and reprint prompt
-					fmt.Print("\r$ ")
-					// Print the original input
-					fmt.Print(inputStr)
-					// Print the completion difference
-					fmt.Print(completionDiff)
-
-					input = append(input, []byte(completionDiff)...)
+					// Clear the current line
+					fmt.Print("\033[2K\r")
+					// Reprint prompt and the completed input
+					fmt.Printf("$ %s", completion)
+					input = []byte(completion)
 				}
 				continue
 			}
