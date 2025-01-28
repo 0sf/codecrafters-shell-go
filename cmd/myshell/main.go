@@ -242,6 +242,13 @@ func main() {
 					fmt.Print("\033[2K\r")
 					// Reprint prompt and the completed input
 					fmt.Printf("$ %s", completion)
+
+					// Add spaces to overwrite any remaining characters
+					if len(inputStr) > len(completion) {
+						for i := 0; i < len(inputStr)-len(completion); i++ {
+							fmt.Print(" ")
+						}
+					}
 					input = []byte(completion)
 				}
 				continue
