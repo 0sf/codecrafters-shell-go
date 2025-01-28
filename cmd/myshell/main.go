@@ -10,14 +10,6 @@ import (
 	"strings"
 )
 
-type AutocompleteResult int
-
-const (
-	AutocompleteNone AutocompleteResult = iota
-	AutocompleteFound
-	AutocompleteMore
-)
-
 func echo(args []string) {
 	fmt.Println(strings.Join(args, " "))
 }
@@ -211,29 +203,15 @@ func executeCommand(command string, args []string, outputFile, errorFile string,
 	}
 }
 
-func getCompletion(input string) (string, AutocompleteResult) {
+func getCompletion(input string) string {
 	builtins := []string{"echo", "exit", "type", "pwd", "cd"}
-	var candidates []string
 
-	// Find all matching commands
 	for _, cmd := range builtins {
 		if strings.HasPrefix(cmd, input) {
-			candidates = append(candidates, cmd)
+			return cmd + " "
 		}
 	}
-
-	if len(candidates) == 0 {
-		return input, AutocompleteNone
-	}
-
-	if len(candidates) == 1 {
-		// Single match found - return the full command
-		return candidates[0] + " ", AutocompleteFound
-	}
-
-	// Multiple matches found
-	fmt.Printf("\n%v\n$ %s", candidates, input)
-	return input, AutocompleteMore
+	return input
 }
 
 func main() {
@@ -258,24 +236,17 @@ func main() {
 			// Handle tab completion
 			if b == '\t' {
 				inputStr := string(input)
-				completion, result := getCompletion(inputStr)
-
-				switch result {
-				case AutocompleteFound:
+				completion := getCompletion(inputStr)
+				if completion != inputStr {
+					completionDiff := completion[len(inputStr):]
 					// Move cursor to beginning of line and reprint prompt
 					fmt.Print("\r$ ")
-					// Print the completion
-					fmt.Print(completion)
-					// Pad with spaces to overwrite remaining characters
-					if len(inputStr) > len(completion) {
-						for i := 0; i < len(inputStr)-len(completion); i++ {
-							fmt.Print(" ")
-						}
-					}
-					input = []byte(completion)
-				case AutocompleteMore:
-					// Multiple matches were printed, just update input
-					input = []byte(inputStr)
+					// Print the original input
+					fmt.Print(inputStr)
+					// Print the completion difference
+					fmt.Print(completionDiff)
+
+					input = append(input, []byte(completionDiff)...)
 				}
 				continue
 			}
@@ -285,7 +256,7 @@ func main() {
 
 			// Show completion suggestion after each character
 			inputStr := string(input)
-			completion, _ := getCompletion(inputStr)
+			completion := getCompletion(inputStr)
 			if completion != inputStr {
 				// Save cursor position
 				fmt.Print("\033[s")
