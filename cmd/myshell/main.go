@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chzyer/readline"
+	"golang.org/x/term"
 )
 
 func echo(args []string) {
@@ -204,49 +204,59 @@ func executeCommand(command string, args []string, outputFile, errorFile string,
 	}
 }
 
-// Add this new function for command completion
-func completer(line string) []string {
-	builtins := []string{"echo", "exit", "type", "pwd", "cd"}
-	if line == "" {
-		return builtins
-	}
-
-	var completions []string
-	for _, cmd := range builtins {
-		if strings.HasPrefix(cmd, line) {
-			completions = append(completions, cmd)
-		}
-	}
-	return completions
-}
-
 func main() {
-	// Replace the bufio.NewReader with readline setup
-	rl, err := readline.New("$ ")
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error initializing readline:", err)
-		os.Exit(1)
+		panic(err)
 	}
-	defer rl.Close()
+	defer term.Restore(int(os.Stdin.Fd()), oldState)
 
-	// Set up the completer
-	rl.Config.AutoComplete = readline.NewPrefixCompleter(
-		readline.PcItemDynamic(func(line string) []string {
-			return completer(line)
-		}),
-	)
+	terminal := term.NewTerminal(os.Stdin, "$ ")
+
+	// Set up autocomplete callback
+	terminal.AutoCompleteCallback = func(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
+		if key != '\t' {
+			return "", 0, false
+		}
+
+		// Get the word being completed (from last space to cursor)
+		word := line[:pos]
+		if lastSpace := strings.LastIndex(word, " "); lastSpace >= 0 {
+			word = word[lastSpace+1:]
+		}
+
+		// Try to find matching commands
+		var matches []string
+		for _, cmd := range []string{"exit", "echo", "type", "pwd", "cd"} {
+			if strings.HasPrefix(cmd, word) {
+				matches = append(matches, cmd)
+			}
+		}
+
+		// If exactly one match, complete it
+		if len(matches) == 1 {
+			suffix := matches[0][len(word):]
+			newLine = line[:pos] + suffix + " " + line[pos:]
+			newPos = pos + len(suffix) + 1
+			return newLine, newPos, true
+		}
+
+		return "", 0, false
+	}
 
 	for {
-		input, err := rl.Readline()
+		line, err := terminal.ReadLine()
 		if err != nil {
-			if err == readline.ErrInterrupt {
-				continue
-			}
-			break
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 
-		input = strings.TrimSpace(input)
-		parts := parseInput(input)
+		if len(line) == 0 {
+			continue
+		}
+
+		// Rest of your existing command processing code
+		parts := parseInput(line)
 		if len(parts) == 0 {
 			continue
 		}
@@ -266,6 +276,7 @@ func main() {
 					cmdParts = make([]string, i)
 					copy(cmdParts, parts[:i])
 				}
+				break
 			} else if (parts[i] == ">>" || parts[i] == "1>>") && i+1 < len(parts) {
 				outputFile = parts[i+1]
 				appendOutput = true
@@ -273,6 +284,7 @@ func main() {
 					cmdParts = make([]string, i)
 					copy(cmdParts, parts[:i])
 				}
+				break
 			} else if parts[i] == "2>" && i+1 < len(parts) {
 				errorFile = parts[i+1]
 				appendError = false
@@ -280,6 +292,7 @@ func main() {
 					cmdParts = make([]string, i)
 					copy(cmdParts, parts[:i])
 				}
+				break
 			} else if parts[i] == "2>>" && i+1 < len(parts) {
 				errorFile = parts[i+1]
 				appendError = true
@@ -287,6 +300,7 @@ func main() {
 					cmdParts = make([]string, i)
 					copy(cmdParts, parts[:i])
 				}
+				break
 			}
 		}
 
